@@ -51,7 +51,7 @@ export class MerchantSessionService {
     input.response.cookie(COOKIE_NAME, rawToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: SESSION_TTL_MS,
       path: "/",
       ...(process.env.DASHBOARD_COOKIE_DOMAIN
