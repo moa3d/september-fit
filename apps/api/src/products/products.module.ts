@@ -8,5 +8,6 @@ import { CommercialModule } from "../commercial/commercial.module";
   imports: [AuthModule, CommercialModule],
   controllers: [ProductsController],
   providers: [ProductsService],
+  exports: [ProductsService],
 })
 export class ProductsModule {}

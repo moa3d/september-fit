@@ -4,9 +4,17 @@ import { DeveloperController } from "./developer.controller";
 import { DeveloperService } from "./developer.service";
 import { FeedbackModule } from "../feedback/feedback.module";
 import { CommercialModule } from "../commercial/commercial.module";
+import { ProductsModule } from "../products/products.module";
+import { FitSessionsModule } from "../fit-sessions/fit-sessions.module";
 
 @Module({
-  imports: [MerchantAuthModule, FeedbackModule, CommercialModule],
+  imports: [
+    MerchantAuthModule,
+    FeedbackModule,
+    CommercialModule,
+    ProductsModule,
+    FitSessionsModule,
+  ],
   controllers: [DeveloperController],
   providers: [DeveloperService],
 })

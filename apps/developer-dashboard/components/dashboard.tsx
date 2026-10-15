@@ -10,6 +10,8 @@ import {
 
 type Tab =
   | "overview"
+  | "products"
+  | "fitSessions"
   | "keys"
   | "origins"
   | "webhooks"
@@ -41,6 +43,16 @@ const tabs: {
   {
     id: "overview",
     label: "نظرة عامة",
+    roles: ["OWNER", "ADMIN", "DEVELOPER", "ANALYST"],
+  },
+  {
+    id: "products",
+    label: "المنتجات",
+    roles: ["OWNER", "ADMIN", "DEVELOPER", "ANALYST"],
+  },
+  {
+    id: "fitSessions",
+    label: "Fit Sessions",
     roles: ["OWNER", "ADMIN", "DEVELOPER", "ANALYST"],
   },
   {
@@ -228,6 +240,10 @@ export default function Dashboard() {
         path ??
         (tab === "overview"
           ? "/developer/overview"
+          : tab === "products"
+            ? "/developer/products"
+            : tab === "fitSessions"
+              ? "/developer/fit-sessions"
           : tab === "keys"
             ? "/developer/api-keys"
             : tab === "origins"
@@ -316,6 +332,135 @@ export default function Dashboard() {
     );
 
     await load("/developer/api-keys");
+  }
+
+  async function createProduct() {
+    const externalProductId = window.prompt(
+      "معرّف المنتج الخارجي:",
+      `TEST-${Date.now()}`,
+    );
+    if (!externalProductId) return;
+
+    const name = window.prompt("اسم المنتج:", "جاكيت تجريبي");
+    if (!name) return;
+
+    const category = (
+      window.prompt(
+        "الفئة: JACKET / HOODIE / SHIRT / TSHIRT / PANTS / JEANS",
+        "JACKET",
+      ) ?? "JACKET"
+    ).toUpperCase();
+
+    if (
+      !["JACKET", "HOODIE", "SHIRT", "TSHIRT", "PANTS", "JEANS"].includes(
+        category,
+      )
+    ) {
+      window.alert("الفئة غير مدعومة.");
+      return;
+    }
+
+    const sku = window.prompt("SKU اختياري:", externalProductId) ?? "";
+    const originalSizeLabel =
+      window.prompt("المقاس المكتوب على القطعة:", "M") ?? "";
+
+    await developerRequest("/developer/products", {
+      method: "POST",
+      body: JSON.stringify({
+        external_product_id: externalProductId,
+        sku: sku || undefined,
+        name,
+        category,
+        original_size_label: originalSizeLabel || undefined,
+        active: true,
+      }),
+    });
+
+    await load("/developer/products");
+  }
+
+  async function saveMeasurements() {
+    const products = data?.data ?? [];
+    const first = products[0];
+    const productId = window.prompt(
+      "Product ID الذي تريد إدخال قياساته:",
+      first?.id ?? "",
+    );
+    if (!productId) return;
+
+    const product = products.find((item: any) => item.id === productId) ?? first;
+    const category = product?.category ?? "JACKET";
+    const isLower = ["PANTS", "JEANS"].includes(category);
+
+    const num = (label: string, fallback = "") => {
+      const value = window.prompt(label, fallback);
+      if (!value) return undefined;
+      const parsed = Number(value.replace(",", "."));
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
+    const payload: Record<string, unknown> = {
+      quality: "VERIFIED",
+      fit_type: "REGULAR",
+      stretch_level: "NONE",
+      measured_by: identity.user.email,
+    };
+
+    if (isLower) {
+      payload.waist_width_cm = num("عرض الخصر سم (القطعة مفرودة):", "42");
+      payload.hip_width_cm = num("عرض الورك سم:", "52");
+      payload.thigh_width_cm = num("عرض الفخذ سم:", "30");
+      payload.inseam_cm = num("طول الساق الداخلي سم:", "78");
+      payload.garment_length_cm = num("الطول الكلي سم:", "104");
+    } else {
+      payload.chest_width_cm = num("عرض الصدر سم (القطعة مفرودة):", "56");
+      payload.shoulder_width_cm = num("عرض الكتفين سم:", "47");
+      payload.sleeve_length_cm = num("طول الكم سم:", "64");
+      payload.garment_length_cm = num("طول القطعة سم:", "70");
+    }
+
+    await developerRequest(
+      `/developer/products/${encodeURIComponent(productId)}/measurements`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
+
+    await load("/developer/products");
+    window.alert("تم حفظ القياسات.");
+  }
+
+  async function createFitSession() {
+    const productsResult = await developerRequest<any>("/developer/products");
+    const products = productsResult?.data ?? [];
+    const first = products[0];
+
+    if (!first) {
+      window.alert("أضف منتجًا أولًا.");
+      return;
+    }
+
+    const externalProductId = window.prompt(
+      "external_product_id:",
+      first.external_product_id,
+    );
+    if (!externalProductId) return;
+
+    const created = await developerRequest<any>("/developer/fit-sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        external_product_id: externalProductId,
+        locale: "ar",
+      }),
+    });
+
+    await load("/developer/fit-sessions");
+
+    if (created.fit_url) {
+      window.open(created.fit_url, "_blank", "noopener,noreferrer");
+      window.alert(`تم إنشاء الجلسة.\n\n${created.fit_url}`);
+    }
   }
 
   async function addOrigin() {
@@ -650,6 +795,17 @@ export default function Dashboard() {
           <Card>جاري التحميل...</Card>
         ) : tab === "overview" ? (
           <Overview data={data} />
+        ) : tab === "products" ? (
+          <ProductsView
+            data={data}
+            onCreate={() => void createProduct()}
+            onMeasurements={() => void saveMeasurements()}
+          />
+        ) : tab === "fitSessions" ? (
+          <FitSessionsView
+            data={data}
+            onCreate={() => void createFitSession()}
+          />
         ) : tab === "keys" ? (
           <ListView
             title="API Keys"
@@ -874,6 +1030,148 @@ function ListView({
   );
 }
 
+
+function ProductsView({
+  data,
+  onCreate,
+  onMeasurements,
+}: {
+  data: any;
+  onCreate: () => void;
+  onMeasurements: () => void;
+}) {
+  const products = data?.data ?? [];
+
+  return (
+    <Card>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          flexWrap: "wrap",
+          marginBottom: 16,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>المنتجات</h2>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button secondary onClick={onMeasurements}>
+            إدخال / تحديث القياسات
+          </Button>
+          <Button onClick={onCreate}>+ إضافة منتج</Button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 10 }}>
+        {products.length === 0 ? (
+          <div style={{ color: "#66565a" }}>لا توجد منتجات.</div>
+        ) : (
+          products.map((product: any) => (
+            <div
+              key={product.id}
+              style={{
+                border: "1px solid #eadfd2",
+                borderRadius: 12,
+                padding: 14,
+              }}
+            >
+              <div style={{ fontWeight: 900 }}>{product.name}</div>
+              <div style={{ color: "#66565a", fontSize: 12, marginTop: 4 }}>
+                {product.category} · {product.external_product_id}
+                {product.original_size_label
+                  ? ` · Size ${product.original_size_label}`
+                  : ""}
+              </div>
+              <div
+                style={{
+                  marginTop: 7,
+                  fontSize: 11,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                Product ID: {product.id}
+              </div>
+              <div
+                style={{
+                  marginTop: 7,
+                  color: product.latest_measurement ? "#3f7d56" : "#a43d42",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {product.latest_measurement
+                  ? `القياسات جاهزة · v${product.latest_measurement.version} · ${product.latest_measurement.quality}`
+                  : "لا توجد قياسات بعد"}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function FitSessionsView({
+  data,
+  onCreate,
+}: {
+  data: any;
+  onCreate: () => void;
+}) {
+  const sessions = data?.data ?? [];
+
+  return (
+    <Card>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Fit Sessions</h2>
+        <Button onClick={onCreate}>+ جلسة اختبار</Button>
+      </div>
+
+      <div style={{ display: "grid", gap: 10 }}>
+        {sessions.length === 0 ? (
+          <div style={{ color: "#66565a" }}>لا توجد جلسات بعد.</div>
+        ) : (
+          sessions.map((session: any) => (
+            <div
+              key={session.id}
+              style={{
+                border: "1px solid #eadfd2",
+                borderRadius: 12,
+                padding: 14,
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 900 }}>{session.product_name}</div>
+                <div style={{ color: "#66565a", fontSize: 12, marginTop: 4 }}>
+                  {session.external_product_id} · {session.id}
+                </div>
+                {session.result ? (
+                  <div style={{ marginTop: 7, fontSize: 12 }}>
+                    Fit Score: <b>{session.result.fit_score}</b> · {session.result.label}
+                  </div>
+                ) : null}
+              </div>
+              <div style={{ color: "#3f7d56", fontSize: 12, fontWeight: 800 }}>
+                {session.status}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
 
 function FeedbackAnalytics({
   data,

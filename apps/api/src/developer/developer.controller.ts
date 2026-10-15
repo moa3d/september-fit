@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -17,6 +18,11 @@ import { CreateOriginDto } from "./dto/create-origin.dto";
 import { CreateWebhookDto } from "./dto/create-webhook.dto";
 import { DeveloperService } from "./developer.service";
 import { FeedbackService } from "../feedback/feedback.service";
+import { ProductsService } from "../products/products.service";
+import { CreateProductDto } from "../products/dto/create-product.dto";
+import { SaveMeasurementsDto } from "../products/dto/save-measurements.dto";
+import { FitSessionsService } from "../fit-sessions/fit-sessions.service";
+import { CreateFitSessionDto } from "../fit-sessions/dto/create-fit-session.dto";
 
 @Controller("developer")
 @UseGuards(MerchantSessionGuard, MerchantRolesGuard)
@@ -24,12 +30,61 @@ export class DeveloperController {
   constructor(
     private readonly developer: DeveloperService,
     private readonly feedback: FeedbackService,
+    private readonly products: ProductsService,
+    private readonly fitSessions: FitSessionsService,
   ) {}
 
   @Get("overview")
   @RequireMerchantRoles("OWNER", "ADMIN", "DEVELOPER", "ANALYST")
   overview(@Req() req: DashboardRequest) {
     return this.developer.overview(req.dashboardUser.merchantId);
+  }
+
+  @Get("products")
+  @RequireMerchantRoles("OWNER", "ADMIN", "DEVELOPER", "ANALYST")
+  listProducts(@Req() req: DashboardRequest) {
+    return this.products.list(req.dashboardUser.merchantId);
+  }
+
+  @Post("products")
+  @RequireMerchantRoles("OWNER", "ADMIN", "DEVELOPER")
+  createProduct(
+    @Req() req: DashboardRequest,
+    @Body() dto: CreateProductDto,
+  ) {
+    return this.products.create(req.dashboardUser.merchantId, dto);
+  }
+
+  @Put("products/:productId/measurements")
+  @RequireMerchantRoles("OWNER", "ADMIN", "DEVELOPER")
+  saveProductMeasurements(
+    @Req() req: DashboardRequest,
+    @Param("productId") productId: string,
+    @Body() dto: SaveMeasurementsDto,
+  ) {
+    return this.products.saveMeasurements(
+      req.dashboardUser.merchantId,
+      productId,
+      dto,
+    );
+  }
+
+  @Get("fit-sessions")
+  @RequireMerchantRoles("OWNER", "ADMIN", "DEVELOPER", "ANALYST")
+  listFitSessions(@Req() req: DashboardRequest) {
+    return this.fitSessions.list(req.dashboardUser.merchantId);
+  }
+
+  @Post("fit-sessions")
+  @RequireMerchantRoles("OWNER", "ADMIN", "DEVELOPER")
+  createFitSession(
+    @Req() req: DashboardRequest,
+    @Body() dto: CreateFitSessionDto,
+  ) {
+    return this.fitSessions.create(
+      req.dashboardUser.merchantId,
+      dto,
+    );
   }
 
   @Get("api-keys")
