@@ -4,10 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuotaService } from "../commercial/quota.service";
 import type { CreateProductDto } from "./dto/create-product.dto";
 import type { SaveMeasurementsDto } from "./dto/save-measurements.dto";
+
+function toPrismaJson(
+  value: unknown,
+): Prisma.InputJsonValue {
+  return JSON.parse(
+    JSON.stringify(value),
+  ) as Prisma.InputJsonValue;
+}
 
 @Injectable()
 export class ProductsService {
@@ -48,7 +57,10 @@ export class ProductsService {
         brand: dto.brand ?? null,
         originalSizeLabel: dto.original_size_label ?? null,
         active: dto.active ?? true,
-        metadata: dto.metadata ?? undefined,
+        metadata:
+          dto.metadata === undefined
+            ? undefined
+            : toPrismaJson(dto.metadata),
       },
     });
 

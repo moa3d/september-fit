@@ -21,6 +21,15 @@ import { WebhookEventsService } from "../webhooks/webhook-events.service";
 import { mapGarment, mapProfile } from "./fit.mapper";
 import type { CalculateFitDto } from "./dto/calculate-fit.dto";
 
+function toPrismaJson(
+  value: unknown,
+): Prisma.InputJsonValue {
+  return JSON.parse(
+    JSON.stringify(value),
+  ) as Prisma.InputJsonValue;
+}
+
+
 @Injectable()
 export class FitService {
   constructor(
@@ -217,7 +226,7 @@ export class FitService {
                   result.predictedFit,
                 engineVersion:
                   result.engineVersion,
-                details: {
+                details: toPrismaJson({
                   coverage:
                     result.coverage,
                   confidenceScore:
@@ -226,9 +235,11 @@ export class FitService {
                     result.metrics,
                   warnings:
                     result.warnings,
-                },
+                }),
                 inputSnapshot:
-                  result.inputSnapshot,
+                  toPrismaJson(
+                    result.inputSnapshot,
+                  ),
               },
             });
 

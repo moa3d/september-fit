@@ -1,7 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { WebhookQueueService } from "./webhook-queue.service";
+
+function toPrismaJson(
+  value: unknown,
+): Prisma.InputJsonValue {
+  return JSON.parse(
+    JSON.stringify(value),
+  ) as Prisma.InputJsonValue;
+}
 
 @Injectable()
 export class WebhookEventsService {
@@ -50,7 +59,8 @@ export class WebhookEventsService {
               endpoint.id,
             eventId,
             eventType,
-            payload,
+            payload:
+              toPrismaJson(payload),
             status: "PENDING",
             attemptCount: 0,
             nextAttemptAt: new Date(),

@@ -224,13 +224,19 @@ export default function HostedFitFlow({ token }: { token: string }) {
   }
 
   function goBackToMerchant() {
+    const activeSession = session;
+
+    if (!activeSession) {
+      return;
+    }
+
     const embed = getEmbedContext();
 
     if (embed.embedded && embed.parentOrigin) {
       window.parent.postMessage(
         {
           type: "september-fit:complete",
-          sessionId: session.session_id,
+          sessionId: activeSession.session_id,
           returnUrl,
           fitScore: result?.fit_score,
           label: result?.label,
