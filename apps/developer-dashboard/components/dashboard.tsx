@@ -403,7 +403,7 @@ export default function Dashboard() {
       quality: "VERIFIED",
       fit_type: "REGULAR",
       stretch_level: "NONE",
-      measured_by: identity.user.email,
+      measured_by: identity?.user.email ?? "dashboard",
     };
 
     if (isLower) {
