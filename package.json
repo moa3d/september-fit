@@ -1,0 +1,29 @@
+{
+  "name": "september-fit",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @september-fit/fit-engine && npm run build -w @september-fit/api",
+    "dev:api": "npm run start:dev -w @september-fit/api",
+    "db:generate": "npm run prisma:generate -w @september-fit/api",
+    "db:migrate": "npm run prisma:migrate -w @september-fit/api",
+    "db:seed": "npm run prisma:seed -w @september-fit/api",
+    "test:engine": "npm test -w @september-fit/fit-engine",
+    "dev:web": "npm run dev -w @september-fit/customer-web",
+    "build:web": "npm run build -w @september-fit/customer-web",
+    "dev": "npm run dev:api",
+    "build:sdk": "npm run build -w @september-fit/sdk",
+    "test:sdk": "npm test -w @september-fit/sdk",
+    "dev:dashboard": "npm run dev -w @september-fit/developer-dashboard",
+    "build:dashboard": "npm run build -w @september-fit/developer-dashboard",
+    "db:push": "npm run prisma:push -w @september-fit/api",
+    "test:e2e": "npm run test:e2e -w @september-fit/api"
+  },
+  "engines": {
+    "node": ">=20 <23"
+  }
+}

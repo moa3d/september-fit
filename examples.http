@@ -1,0 +1,95 @@
+@base = http://localhost:3000/v1
+@apiKey = sk_test_REPLACE_ME
+@productId = REPLACE_ME
+@profileId = REPLACE_ME
+@sessionToken = fs_REPLACE_ME
+
+### Health
+GET {{base}}/health
+
+### Create product
+POST {{base}}/products
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "external_product_id": "SEP-0600",
+  "sku": "SEP-0600",
+  "name": "جاكيت تجريبي",
+  "category": "JACKET",
+  "brand": "Vintage",
+  "original_size_label": "M"
+}
+
+### Add measurements
+PUT {{base}}/products/{{productId}}/measurements
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "quality": "VERIFIED",
+  "fit_type": "REGULAR",
+  "stretch_level": "NONE",
+  "chest_width_cm": 54,
+  "shoulder_width_cm": 46,
+  "sleeve_length_cm": 64,
+  "garment_length_cm": 70
+}
+
+### Create profile
+POST {{base}}/profiles
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "external_customer_id": "customer_900",
+  "profile_type": "MENS",
+  "preferred_fit": "REGULAR",
+  "height_cm": 178,
+  "weight_kg": 68,
+  "chest_cm": 98,
+  "shoulder_cm": 44,
+  "sleeve_cm": 62
+}
+
+### Direct calculate
+POST {{base}}/fit/calculate
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "product_id": "{{productId}}",
+  "profile_id": "{{profileId}}"
+}
+
+### Create hosted fit session
+POST {{base}}/fit-sessions
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "external_product_id": "SEP-0491",
+  "external_customer_id": "customer_900",
+  "return_url": "https://shop.example.com/products/SEP-0491",
+  "locale": "ar"
+}
+
+### Public hosted session
+GET {{base}}/public/fit-sessions/{{sessionToken}}
+
+### Public save profile
+POST {{base}}/public/fit-sessions/{{sessionToken}}/profile
+Content-Type: application/json
+
+{
+  "profile_type": "MENS",
+  "preferred_fit": "REGULAR",
+  "height_cm": 178,
+  "weight_kg": 68,
+  "chest_cm": 98,
+  "shoulder_cm": 44,
+  "sleeve_cm": 62
+}
+
+### Public calculate
+POST {{base}}/public/fit-sessions/{{sessionToken}}/calculate

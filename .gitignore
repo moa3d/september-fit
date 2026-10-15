@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+*.log
+.DS_Store
+
+.env.production
+secrets/*.txt
+backups/
+
+.next
+*.tsbuildinfo
+.turbo
+.vercel
+.railway
+.idea
+.vscode

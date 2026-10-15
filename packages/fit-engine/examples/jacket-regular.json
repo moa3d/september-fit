@@ -1,0 +1,16 @@
+{
+  "profile": {
+    "preferredFit": "REGULAR",
+    "chestCm": 98,
+    "shoulderCm": 44,
+    "sleeveCm": 62
+  },
+  "garment": {
+    "category": "JACKET",
+    "quality": "VERIFIED",
+    "stretchLevel": "NONE",
+    "chestWidthCm": 54,
+    "shoulderWidthCm": 46,
+    "sleeveLengthCm": 64
+  }
+}

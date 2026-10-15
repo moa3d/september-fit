@@ -1,0 +1,727 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MerchantStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+enum Environment {
+  TEST
+  LIVE
+}
+enum MerchantRole {
+  OWNER
+  ADMIN
+  DEVELOPER
+  ANALYST
+  STAFF
+}
+enum FitPreference {
+  SLIM
+  REGULAR
+  LOOSE
+}
+enum FitProfileType {
+  MENS
+  WOMENS
+  UNISEX
+}
+enum StretchLevel {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+enum MeasurementQuality {
+  BASIC
+  STANDARD
+  VERIFIED
+}
+enum FitSessionStatus {
+  CREATED
+  PROFILE_REQUIRED
+  READY
+  CALCULATED
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+enum FitLabel {
+  EXCELLENT
+  GOOD
+  POSSIBLE
+  NOT_IDEAL
+  NOT_RECOMMENDED
+}
+enum FitConfidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+enum FeedbackOverall {
+  TOO_SMALL
+  PERFECT
+  TOO_LARGE
+}
+enum FeedbackRequestStatus {
+  CREATED
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum UsageMetric {
+  FIT_CALCULATION
+  FIT_SESSION
+}
+
+enum PlanChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
+model Merchant {
+  id          String @id @default(cuid())
+  publicId    String @unique @default(uuid())
+  name        String
+  slug        String @unique
+  status      MerchantStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  onboardingCompletedAt DateTime?
+
+  users       MerchantUser[]
+  apiKeys     ApiKey[]
+  origins     AllowedOrigin[]
+  customers   Customer[]
+  products    Product[]
+  profiles    FitProfile[]
+  sessions    FitSession[]
+  results     FitResult[]
+  feedback    FitFeedback[]
+  feedbackRequests FeedbackRequest[]
+  webhooks    WebhookEndpoint[]
+  deliveries  WebhookDelivery[]
+  events      AnalyticsEvent[]
+  auditLogs   AuditLog[]
+  idempotency IdempotencyKey[]
+  merchantSessions MerchantSession[]
+  subscription MerchantSubscription?
+  usageCounters UsageCounter[]
+  planChangeRequests PlanChangeRequest[]
+  invitations TeamInvitation[]
+  verificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  billingInvoices BillingInvoice[]
+}
+
+model MerchantUser {
+  id              String       @id @default(cuid())
+  merchantId      String
+  email           String       @unique
+  role            MerchantRole @default(STAFF)
+  authUserId      String?
+  passwordHash    String?
+  emailVerifiedAt DateTime?
+  disabledAt      DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  merchant Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  sessions MerchantSession[]
+  verificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@unique([merchantId, email])
+  @@index([merchantId, role])
+  @@index([email])
+}
+
+model ApiKey {
+  id          String @id @default(cuid())
+  merchantId  String
+  environment Environment @default(TEST)
+  name        String
+  prefix      String
+  secretHash  String
+  lastFour    String
+  scopes      String[]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, prefix])
+  @@index([merchantId, environment, revokedAt])
+}
+
+model AllowedOrigin {
+  id         String @id @default(cuid())
+  merchantId String
+  origin     String
+  createdAt  DateTime @default(now())
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, origin])
+}
+
+model Customer {
+  id                 String @id @default(cuid())
+  publicId           String @unique @default(uuid())
+  merchantId         String
+  externalCustomerId String?
+  identityRef        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  merchant           Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  profiles           FitProfile[]
+  sessions           FitSession[]
+  feedback           FitFeedback[]
+  feedbackRequests   FeedbackRequest[]
+
+  @@unique([merchantId, externalCustomerId])
+}
+
+model FitProfile {
+  id           String @id @default(cuid())
+  publicId     String @unique @default(uuid())
+  merchantId   String
+  customerId   String?
+  profileType  FitProfileType @default(UNISEX)
+  preferredFit FitPreference @default(REGULAR)
+  merchantCanReadMeasurements Boolean @default(true)
+
+  heightCm     Decimal? @db.Decimal(6,2)
+  weightKg     Decimal? @db.Decimal(6,2)
+  chestCm      Decimal? @db.Decimal(6,2)
+  waistCm      Decimal? @db.Decimal(6,2)
+  hipsCm       Decimal? @db.Decimal(6,2)
+  shoulderCm   Decimal? @db.Decimal(6,2)
+  sleeveCm     Decimal? @db.Decimal(6,2)
+  inseamCm     Decimal? @db.Decimal(6,2)
+  thighCm      Decimal? @db.Decimal(6,2)
+
+  version      Int @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  merchant     Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sessions     FitSession[]
+  results      FitResult[]
+
+  @@index([merchantId, customerId])
+}
+
+model Product {
+  id                String @id @default(cuid())
+  publicId          String @unique @default(uuid())
+  merchantId        String
+  externalProductId String
+  sku               String?
+  name              String
+  category          String
+  brand             String?
+  originalSizeLabel String?
+  active            Boolean @default(true)
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  measurements      GarmentMeasurement[]
+  sessions          FitSession[]
+  results           FitResult[]
+  feedback          FitFeedback[]
+  feedbackRequests  FeedbackRequest[]
+
+  @@unique([merchantId, externalProductId])
+  @@unique([merchantId, sku])
+  @@index([merchantId, category, active])
+}
+
+model GarmentMeasurement {
+  id                 String @id @default(cuid())
+  productId          String
+  version            Int @default(1)
+  quality            MeasurementQuality @default(BASIC)
+  fitType            FitPreference?
+  stretchLevel       StretchLevel @default(NONE)
+
+  chestWidthCm       Decimal? @db.Decimal(6,2)
+  shoulderWidthCm    Decimal? @db.Decimal(6,2)
+  sleeveLengthCm     Decimal? @db.Decimal(6,2)
+  garmentLengthCm    Decimal? @db.Decimal(6,2)
+  waistWidthCm       Decimal? @db.Decimal(6,2)
+  hipWidthCm         Decimal? @db.Decimal(6,2)
+  thighWidthCm       Decimal? @db.Decimal(6,2)
+  inseamCm           Decimal? @db.Decimal(6,2)
+
+  measuredBy         String?
+  measuredAt         DateTime?
+  active             Boolean @default(true)
+  createdAt          DateTime @default(now())
+
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, version])
+  @@index([productId, active])
+}
+
+model FitSession {
+  id              String @id @default(cuid())
+  publicId        String @unique @default(uuid())
+  merchantId      String
+  customerId      String?
+  fitProfileId    String?
+  productId       String
+  status          FitSessionStatus @default(CREATED)
+  publicTokenHash String @unique
+  returnUrl       String?
+  locale          String @default("ar")
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  merchant        Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  fitProfile      FitProfile? @relation(fields: [fitProfileId], references: [id], onDelete: SetNull)
+  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  result          FitResult?
+  feedback        FitFeedback[]
+  feedbackRequests FeedbackRequest[]
+
+  @@index([merchantId, status, createdAt])
+  @@index([merchantId, productId, createdAt])
+  @@index([expiresAt])
+}
+
+model FitResult {
+  id            String @id @default(cuid())
+  publicId      String @unique @default(uuid())
+  merchantId    String
+  fitSessionId  String @unique
+  fitProfileId  String?
+  productId     String
+  score         Int
+  label         FitLabel
+  confidence    FitConfidence
+  predictedFit  FitPreference?
+  engineVersion String
+  details       Json
+  inputSnapshot Json
+  createdAt     DateTime @default(now())
+
+  merchant      Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  fitSession    FitSession @relation(fields: [fitSessionId], references: [id], onDelete: Cascade)
+  fitProfile    FitProfile? @relation(fields: [fitProfileId], references: [id], onDelete: SetNull)
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  feedback      FitFeedback[]
+  feedbackRequests FeedbackRequest[]
+
+  @@index([merchantId, productId, createdAt])
+}
+
+model FitFeedback {
+  id           String @id @default(cuid())
+  publicId     String @unique @default(uuid())
+  merchantId   String
+  customerId   String?
+  productId    String
+  fitSessionId String?
+  fitResultId  String?
+  feedbackRequestId String? @unique
+  overall      FeedbackOverall
+  problemAreas String[]
+  note         String?
+  createdAt    DateTime @default(now())
+
+  merchant     Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fitSession   FitSession? @relation(fields: [fitSessionId], references: [id], onDelete: SetNull)
+  fitResult    FitResult? @relation(fields: [fitResultId], references: [id], onDelete: SetNull)
+  feedbackRequest FeedbackRequest? @relation(fields: [feedbackRequestId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId, productId, createdAt])
+}
+
+
+model FeedbackRequest {
+  id              String                @id @default(cuid())
+  publicId        String                @unique @default(uuid())
+  merchantId      String
+  customerId      String?
+  productId       String
+  fitSessionId    String?
+  fitResultId     String?
+  externalOrderId String?
+  publicTokenHash String                @unique
+  status          FeedbackRequestStatus @default(CREATED)
+  returnUrl       String?
+  expiresAt       DateTime
+  completedAt     DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer   Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fitSession FitSession? @relation(fields: [fitSessionId], references: [id], onDelete: SetNull)
+  fitResult  FitResult?  @relation(fields: [fitResultId], references: [id], onDelete: SetNull)
+  feedback   FitFeedback?
+
+  @@index([merchantId, status, createdAt])
+  @@index([merchantId, productId, createdAt])
+  @@index([merchantId, externalOrderId])
+  @@index([expiresAt])
+}
+
+model WebhookEndpoint {
+  id           String @id @default(cuid())
+  publicId     String @unique @default(uuid())
+  merchantId   String
+  environment  Environment @default(TEST)
+  url          String
+  secretHash       String
+  secretPrefix     String
+  secretCiphertext String?
+  secretIv         String?
+  secretTag        String?
+  events       String[]
+  enabled      Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  merchant     Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([merchantId, enabled])
+}
+
+model WebhookDelivery {
+  id                String @id @default(cuid())
+  merchantId        String
+  webhookEndpointId String
+  eventId           String
+  eventType         String
+  payload           Json
+  status            WebhookDeliveryStatus @default(PENDING)
+  attemptCount      Int @default(0)
+  lastResponseCode  Int?
+  nextAttemptAt     DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime @default(now())
+
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  endpoint          WebhookEndpoint @relation(fields: [webhookEndpointId], references: [id], onDelete: Cascade)
+
+  @@unique([webhookEndpointId, eventId])
+  @@index([status, nextAttemptAt])
+}
+
+model AnalyticsEvent {
+  id         String @id @default(cuid())
+  merchantId String
+  eventType  String
+  customerId String?
+  productId  String?
+  sessionId  String?
+  properties Json?
+  createdAt  DateTime @default(now())
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, eventType, createdAt])
+}
+
+model AuditLog {
+  id         String @id @default(cuid())
+  merchantId String
+  actorType  String
+  actorId    String?
+  action     String
+  objectType String
+  objectId   String?
+  ipHash     String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, createdAt])
+}
+
+model IdempotencyKey {
+  id           String @id @default(cuid())
+  merchantId   String
+  key          String
+  requestHash  String
+  responseCode Int?
+  responseBody Json?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  merchant     Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, key])
+  @@index([expiresAt])
+}
+
+
+model MerchantSession {
+  id         String   @id @default(cuid())
+  merchantId String
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ipHash     String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user     MerchantUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+
+model ApiRequestLog {
+  id            String   @id @default(cuid())
+  requestId     String
+  merchantId    String?
+  apiKeyId      String?
+  userId        String?
+  authKind      String?
+  method        String
+  route         String
+  statusCode    Int
+  durationMs    Int
+  errorCode     String?
+  ipHash        String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([merchantId, createdAt])
+  @@index([requestId])
+  @@index([statusCode, createdAt])
+  @@index([route, createdAt])
+}
+
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  emailHash  String
+  ipHash     String
+  success    Boolean
+  createdAt  DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+
+model Plan {
+  id                   String   @id @default(cuid())
+  code                 String   @unique
+  name                 String
+  description          String?
+  monthlyPriceCents    Int
+  currency             String   @default("EUR")
+  stripePriceId         String?  @unique
+  fitCalculationsLimit Int?
+  fitSessionsLimit     Int?
+  productsLimit        Int?
+  webhooksLimit        Int?
+  apiKeysLimit         Int?
+  teamMembersLimit     Int?
+  retentionDays        Int      @default(30)
+  active               Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  subscriptions MerchantSubscription[]
+  changeRequests PlanChangeRequest[]
+
+  @@index([active, sortOrder])
+}
+
+model MerchantSubscription {
+  id                     String             @id @default(cuid())
+  merchantId             String             @unique
+  planId                 String
+  status                 SubscriptionStatus @default(ACTIVE)
+  trialEndsAt            DateTime?
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean            @default(false)
+  billingProvider        String?
+  billingCustomerRef     String?
+  billingSubscriptionRef String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  plan     Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId, status])
+  @@index([currentPeriodEnd])
+}
+
+model UsageCounter {
+  id          String      @id @default(cuid())
+  merchantId  String
+  metric      UsageMetric
+  periodStart DateTime
+  periodEnd   DateTime
+  quantity    Int         @default(0)
+  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime    @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, metric, periodStart])
+  @@index([merchantId, periodStart, periodEnd])
+}
+
+model PlanChangeRequest {
+  id                String                  @id @default(cuid())
+  publicId          String                  @unique @default(uuid())
+  merchantId        String
+  requestedPlanId   String
+  requestedByUserId String?
+  status            PlanChangeRequestStatus @default(PENDING)
+  note              String?
+  createdAt         DateTime                @default(now())
+  resolvedAt        DateTime?
+
+  merchant      Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  requestedPlan Plan     @relation(fields: [requestedPlanId], references: [id], onDelete: Restrict)
+
+  @@index([merchantId, status, createdAt])
+}
+
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+
+model TeamInvitation {
+  id          String           @id @default(cuid())
+  publicId    String           @unique @default(uuid())
+  merchantId  String
+  email       String
+  role        MerchantRole
+  tokenHash   String           @unique
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, status, createdAt])
+  @@index([merchantId, email])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id         String   @id @default(cuid())
+  merchantId String
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user     MerchantUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, userId, createdAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  merchantId String
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user     MerchantUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, userId, createdAt])
+  @@index([expiresAt])
+}
+
+
+model BillingProviderEvent {
+  id              String   @id @default(cuid())
+  provider        String
+  providerEventId String
+  eventType       String
+  processedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([provider, eventType, createdAt])
+}
+
+model BillingInvoice {
+  id               String   @id @default(cuid())
+  merchantId       String
+  provider         String
+  externalRef      String
+  status           String
+  currency         String
+  amountDueCents   Int      @default(0)
+  amountPaidCents  Int      @default(0)
+  hostedInvoiceUrl String?
+  invoicePdfUrl    String?
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, externalRef])
+  @@index([merchantId, createdAt])
+  @@index([merchantId, status])
+}

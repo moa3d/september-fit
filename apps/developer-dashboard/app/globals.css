@@ -1,0 +1,19 @@
+:root {
+  --accent: #c83f4d;
+  --accent-dark: #8f2635;
+  --accent-soft: #f4d7da;
+  --page: #faf7f1;
+  --surface: #ffffff;
+  --text: #261a1d;
+  --muted: #66565a;
+  --border: #eadfd2;
+  --green: #3f7d56;
+  --green-soft: #e4f2e8;
+  --warning: #a66a2c;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--page); color: var(--text); font-family: Arial, "Segoe UI", sans-serif; }
+body { direction: rtl; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }

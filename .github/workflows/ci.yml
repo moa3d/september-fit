@@ -1,0 +1,76 @@
+name: September Fit CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: september_fit
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/september_fit?schema=public
+      REDIS_URL: redis://localhost:6379
+      FIT_WEB_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000/v1
+      DASHBOARD_ORIGINS: http://localhost:3002,http://localhost:3001
+      DASHBOARD_PUBLIC_URL: http://localhost:3002
+      WEBHOOK_SECRET_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      SEED_OWNER_EMAIL: owner@septemberfit.local
+      SEED_OWNER_PASSWORD: ChangeMe123!
+      EMAIL_PROVIDER: console
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - run: npm run db:generate
+
+      - run: npm run db:push
+
+      - run: npm run db:seed
+
+      - run: npm run test:engine
+
+      - run: npm run test:sdk
+
+      - run: npm run build:sdk
+
+      - run: npm run test:e2e
+
+      - run: npm run build
+
+      - run: npm run build:web
+
+      - run: npm run build:dashboard
