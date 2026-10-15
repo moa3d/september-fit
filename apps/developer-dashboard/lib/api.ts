@@ -1,11 +1,21 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000/v1";
+function getApiBase() {
+  // In the browser always use the dashboard's same-origin proxy.
+  // This avoids third-party cookie restrictions between Railway service domains.
+  if (typeof window !== "undefined") {
+    return "/api/backend";
+  }
+
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    "http://localhost:3000/v1"
+  );
+}
 
 async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${getApiBase()}${path}`, {
     ...init,
     credentials: "include",
     headers: {
@@ -78,11 +88,7 @@ export function publicRequest<T>(
   path: string,
   init?: RequestInit,
 ) {
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    "http://localhost:3000/v1";
-
-  return fetch(`${API_BASE}${path}`, {
+  return fetch(`${getApiBase()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
