@@ -25,6 +25,37 @@ export class ProductsService {
     private readonly quotas: QuotaService,
   ) {}
 
+  async list(merchantId: string) {
+    const products = await this.prisma.product.findMany({
+      where: { merchantId },
+      include: {
+        measurements: {
+          where: { active: true },
+          orderBy: { version: "desc" },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+
+    return {
+      data: products.map((product) => ({
+        ...this.serialize(product),
+        latest_measurement: product.measurements[0]
+          ? {
+              id: product.measurements[0].id,
+              version: product.measurements[0].version,
+              quality: product.measurements[0].quality,
+              fit_type: product.measurements[0].fitType,
+              stretch_level: product.measurements[0].stretchLevel,
+              measured_at: product.measurements[0].measuredAt,
+            }
+          : null,
+      })),
+    };
+  }
+
   async create(merchantId: string, dto: CreateProductDto) {
     const duplicate = await this.prisma.product.findFirst({
       where: {
@@ -65,63 +96,6 @@ export class ProductsService {
     });
 
     return this.serialize(product);
-  }
-
-  async list(merchantId: string) {
-    const products = await this.prisma.product.findMany({
-      where: { merchantId },
-      include: {
-        measurements: {
-          where: { active: true },
-          orderBy: { version: "desc" },
-          take: 1,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-
-    return {
-      data: products.map((product) => {
-        const measurement = product.measurements[0] ?? null;
-
-        return {
-          ...this.serialize(product),
-          latest_measurement: measurement
-            ? {
-                version: measurement.version,
-                quality: measurement.quality,
-                fit_type: measurement.fitType,
-                stretch_level: measurement.stretchLevel,
-                chest_width_cm: measurement.chestWidthCm
-                  ? Number(measurement.chestWidthCm)
-                  : null,
-                shoulder_width_cm: measurement.shoulderWidthCm
-                  ? Number(measurement.shoulderWidthCm)
-                  : null,
-                sleeve_length_cm: measurement.sleeveLengthCm
-                  ? Number(measurement.sleeveLengthCm)
-                  : null,
-                garment_length_cm: measurement.garmentLengthCm
-                  ? Number(measurement.garmentLengthCm)
-                  : null,
-                waist_width_cm: measurement.waistWidthCm
-                  ? Number(measurement.waistWidthCm)
-                  : null,
-                hip_width_cm: measurement.hipWidthCm
-                  ? Number(measurement.hipWidthCm)
-                  : null,
-                thigh_width_cm: measurement.thighWidthCm
-                  ? Number(measurement.thighWidthCm)
-                  : null,
-                inseam_cm: measurement.inseamCm
-                  ? Number(measurement.inseamCm)
-                  : null,
-              }
-            : null,
-        };
-      }),
-    };
   }
 
   async get(merchantId: string, publicId: string) {

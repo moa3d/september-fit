@@ -22,6 +22,33 @@ export class FitSessionsService {
     private readonly metering: MeteringService,
   ) {}
 
+  async list(merchantId: string) {
+    const sessions = await this.prisma.fitSession.findMany({
+      where: { merchantId },
+      include: {
+        product: true,
+        result: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    return {
+      data: sessions.map((session) => ({
+        id: session.publicId,
+        status: this.effectiveStatus(session.status, session.expiresAt),
+        product_id: session.product.publicId,
+        product_name: session.product.name,
+        external_product_id: session.product.externalProductId,
+        result: session.result
+          ? this.serializeStoredResult(session.result)
+          : null,
+        created_at: session.createdAt,
+        expires_at: session.expiresAt,
+      })),
+    };
+  }
+
   async create(
     merchantId: string,
     dto: CreateFitSessionDto,
@@ -174,36 +201,6 @@ export class FitSessionsService {
       fit_url: `${baseUrl}/s/${rawToken}`,
       status: session.status,
       expires_at: session.expiresAt,
-    };
-  }
-
-  async list(merchantId: string) {
-    const sessions = await this.prisma.fitSession.findMany({
-      where: { merchantId },
-      include: {
-        product: true,
-        result: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-
-    return {
-      data: sessions.map((session) => ({
-        id: session.publicId,
-        status: this.effectiveStatus(
-          session.status,
-          session.expiresAt,
-        ),
-        product_id: session.product.publicId,
-        external_product_id: session.product.externalProductId,
-        product_name: session.product.name,
-        result: session.result
-          ? this.serializeStoredResult(session.result)
-          : null,
-        created_at: session.createdAt,
-        expires_at: session.expiresAt,
-      })),
     };
   }
 

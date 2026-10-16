@@ -19,9 +19,9 @@ import { CreateWebhookDto } from "./dto/create-webhook.dto";
 import { DeveloperService } from "./developer.service";
 import { FeedbackService } from "../feedback/feedback.service";
 import { ProductsService } from "../products/products.service";
+import { FitSessionsService } from "../fit-sessions/fit-sessions.service";
 import { CreateProductDto } from "../products/dto/create-product.dto";
 import { SaveMeasurementsDto } from "../products/dto/save-measurements.dto";
-import { FitSessionsService } from "../fit-sessions/fit-sessions.service";
 import { CreateFitSessionDto } from "../fit-sessions/dto/create-fit-session.dto";
 
 @Controller("developer")
@@ -81,10 +81,7 @@ export class DeveloperController {
     @Req() req: DashboardRequest,
     @Body() dto: CreateFitSessionDto,
   ) {
-    return this.fitSessions.create(
-      req.dashboardUser.merchantId,
-      dto,
-    );
+    return this.fitSessions.create(req.dashboardUser.merchantId, dto);
   }
 
   @Get("api-keys")
